@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "cline-local": {
+      "command": "node",
+      "args": ["server.js"],
+      "disabled": false
+    }
+  }
+}

@@ -31,6 +31,8 @@ class StaticConfigCheck:
     def run(self, report: DiagnosticReport) -> tuple[Finding, ...]:
         findings: list[Finding] = []
         for server in report.servers:
+            if not server.enabled:
+                continue
             findings.extend(_check_launcher(server))
             findings.extend(_check_command(server))
             findings.extend(_check_cwd(server))

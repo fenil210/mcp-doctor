@@ -1,0 +1,31 @@
+# Research Notes
+
+This document records the public documentation used for the current discovery and probing behavior. It is intentionally limited to source-backed behavior.
+
+## Client Configuration Sources
+
+- Claude Desktop uses `claude_desktop_config.json` for desktop MCP server configuration. The MCP quickstart documents the macOS path `~/Library/Application Support/Claude/claude_desktop_config.json` and the Windows path `%APPDATA%\Claude\claude_desktop_config.json`: https://modelcontextprotocol.io/docs/develop/connect-local-servers
+- Cline documents CLI MCP settings at `~/.cline/data/settings/cline_mcp_settings.json`: https://docs.cline.bot/cline-cli/configuration
+- Codex MCP configuration uses `mcp_servers` entries in Codex config: https://developers.openai.com/codex/config-reference
+- Cursor documents project `.cursor/mcp.json` and global `~/.cursor/mcp.json` MCP configuration: https://docs.cursor.com/context/mcp
+- OpenCode documents global `~/.config/opencode/opencode.json`, project `opencode.json`, and MCP config under the `mcp` key: https://opencode.ai/docs/config
+- Roo Code documents project-level `.roo/mcp.json` with `mcpServers`: https://docs.roocode.com/features/mcp/using-mcp-in-roo
+- VS Code documents workspace `.vscode/mcp.json` with a `servers` map: https://code.visualstudio.com/docs/copilot/reference/mcp-configuration
+- Windsurf documents `~/.codeium/windsurf/mcp_config.json` MCP configuration: https://docs.windsurf.com/windsurf/cascade/mcp
+- Zed documents MCP context servers through `context_servers` in settings and project/user settings files: https://zed.dev/docs/ai/mcp and https://zed.dev/docs/configuring-zed
+
+## Protocol Sources
+
+The MCP Python SDK provides the client transports used by remote probing:
+
+- `streamablehttp_client` for Streamable HTTP MCP servers.
+- `sse_client` for SSE MCP servers.
+- `ClientSession.initialize`, `send_ping`, `list_tools`, `list_prompts`, and `list_resources`.
+
+APD only calls `list_prompts` or `list_resources` when the initialized server advertises those capabilities.
+
+Source: https://github.com/modelcontextprotocol/python-sdk
+
+## Deliberate Limits
+
+This PR does not claim real-world app integration testing. Driving actual Claude Desktop, Claude Code, Codex, Cursor, Cline, Roo Code, Zed, OpenCode, and Windsurf installations belongs in a separate opt-in integration harness because those apps are not reliably available in GitHub Actions.

@@ -18,4 +18,4 @@
 | APD070 | low | usability | Server name collision |
 | APD080 | medium | probe | Probe failed |
 
-Use `apd explain <rule-id>` for the detailed explanation and suggested fix.
+Use `apd explain <rule-id>` for the detailed explanation and suggested fix. Probe failures now cover stdio, Streamable HTTP, and SSE probe attempts, including initialize, ping, tools/list, and advertised prompt/resource discovery.

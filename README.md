@@ -9,7 +9,7 @@ It helps answer a practical question: why is my agent plugin setup broken, risky
 - Discovers MCP configuration across supported local clients.
 - Normalizes server definitions into one report model.
 - Detects missing commands, missing env vars, literal secrets, risky package invocations, plain HTTP URLs, broad filesystem roots, absolute project paths, and duplicate server names.
-- Runs controlled stdio MCP probes for initialize and tools/list.
+- Runs controlled MCP probes for initialize, ping, tools/list, advertised prompts/list, and advertised resources/list.
 - Exports terminal, JSON, Markdown, and SARIF reports.
 - Runs as an optional MCP server so agents can ask for diagnostics directly.
 
@@ -65,6 +65,12 @@ Probe a stdio server:
 apd probe --server filesystem
 ```
 
+Include remote Streamable HTTP or SSE servers:
+
+```bash
+apd probe --remote --timeout 10
+```
+
 Explain a finding:
 
 ```bash
@@ -82,11 +88,16 @@ apd init --client cursor
 
 | Client | Configs |
 | --- | --- |
+| Claude Desktop | `~/Library/Application Support/Claude/claude_desktop_config.json`, `~/AppData/Roaming/Claude/claude_desktop_config.json` |
 | Claude Code | `.mcp.json`, `~/.claude.json` |
+| Cline | `~/.cline/data/settings/cline_mcp_settings.json` |
 | Codex | `.codex/config.toml`, `~/.codex/config.toml` |
 | Cursor | `.cursor/mcp.json`, `~/.cursor/mcp.json` |
+| OpenCode | `opencode.json`, `~/.config/opencode/opencode.json` |
+| Roo Code | `.roo/mcp.json` |
 | VS Code | `.vscode/mcp.json` |
 | Windsurf | `~/.codeium/windsurf/mcp_config.json`, `~/.codeium/mcp_config.json` |
+| Zed | `.zed/settings.json`, `~/.config/zed/settings.json`, `~/.zed/settings.json`, `~/AppData/Roaming/Zed/settings.json` |
 
 See [docs/client-matrix.md](docs/client-matrix.md) for details.
 
@@ -131,10 +142,15 @@ Generate client config snippets with:
 
 ```bash
 apd init --client claude-code
+apd init --client claude-desktop
+apd init --client cline
 apd init --client codex
 apd init --client cursor
+apd init --client opencode
+apd init --client roo-code
 apd init --client vscode
 apd init --client windsurf
+apd init --client zed
 ```
 
 ## Development
@@ -152,11 +168,11 @@ Architecture: [docs/architecture.md](docs/architecture.md)
 
 Rules: [docs/rule-index.md](docs/rule-index.md)
 
+Research notes: [docs/research-notes.md](docs/research-notes.md)
+
 ## Security Model
 
-MCP Doctor is local-first and has no telemetry. Static checks do not make network calls. Probe mode starts configured stdio MCP servers only for a controlled protocol handshake and tool discovery, with timeouts and process cleanup.
-
-Remote HTTP and SSE probing is intentionally not implemented in the first release.
+MCP Doctor is local-first and has no telemetry. Static checks do not make network calls. Probe mode starts configured stdio MCP servers only for controlled protocol checks. Remote HTTP and SSE probing requires `apd probe --remote` because it can make network requests.
 
 ## License
 

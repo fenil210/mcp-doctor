@@ -24,6 +24,8 @@ for line in sys.stdin:
                 },
             }
         )
+    elif method == "ping":
+        write({"jsonrpc": "2.0", "id": request["id"], "result": {}})
     elif method == "tools/list":
         write(
             {

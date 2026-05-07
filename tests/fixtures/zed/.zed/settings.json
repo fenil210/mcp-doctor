@@ -1,0 +1,12 @@
+{
+  "context_servers": {
+    "zed-local": {
+      "command": "python",
+      "args": ["server.py"],
+      "env": {}
+    },
+    "zed-remote": {
+      "url": "https://example.com/mcp"
+    }
+  }
+}

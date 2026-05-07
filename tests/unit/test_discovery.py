@@ -36,3 +36,21 @@ def test_discovers_claude_vscode_and_windsurf_configs() -> None:
     assert claude.configs[0].source.client == "claude-code"
     assert vscode.configs[0].source.client == "vscode"
     assert windsurf.configs[0].source.client == "windsurf"
+
+
+def test_discovers_additional_client_configs() -> None:
+    claude_desktop = discover_configs(
+        FIXTURES / "empty-workspace", home=FIXTURES / "claude-desktop"
+    )
+    cline = discover_configs(FIXTURES / "empty-workspace", home=FIXTURES / "cline")
+    roo = discover_configs(FIXTURES / "roo", home=FIXTURES / "empty-home")
+    zed = discover_configs(FIXTURES / "zed", home=FIXTURES / "empty-home")
+    opencode = discover_configs(FIXTURES / "opencode", home=FIXTURES / "empty-home")
+
+    assert claude_desktop.configs[0].source.client == "claude-desktop"
+    assert cline.configs[0].source.client == "cline"
+    assert roo.configs[0].source.client == "roo-code"
+    assert zed.configs[0].source.client == "zed"
+    assert opencode.configs[0].source.client == "opencode"
+    assert opencode.configs[0].servers[0].command == "npx"
+    assert opencode.configs[0].servers[0].args[0] == "-y"
