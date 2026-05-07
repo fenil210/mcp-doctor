@@ -13,6 +13,15 @@ def test_doctor_snippet_supports_vscode() -> None:
     assert '"type": "stdio"' in snippet
 
 
+def test_doctor_snippet_supports_opencode_and_zed() -> None:
+    opencode = doctor_server_snippet("opencode")
+    zed = doctor_server_snippet("zed")
+
+    assert '"mcp"' in opencode
+    assert '"command": [' in opencode
+    assert '"context_servers"' in zed
+
+
 def test_server_config_snippet_supports_codex() -> None:
     source = ConfigSource(client="cursor", path=Path("mcp.json"), scope="project", format="json")
     server = ServerConfig(

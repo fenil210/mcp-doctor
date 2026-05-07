@@ -40,9 +40,20 @@ def build_parser() -> argparse.ArgumentParser:
     export_parser.set_defaults(func=_audit_command)
 
     probe_parser = _add_report_command(
-        subparsers, "probe", "Run static checks and controlled stdio probes."
+        subparsers, "probe", "Run static checks and controlled MCP probes."
     )
     probe_parser.add_argument("--server", help="Only probe a single server id.")
+    probe_parser.add_argument(
+        "--remote",
+        action="store_true",
+        help="Include remote HTTP and SSE probes. This may make network requests.",
+    )
+    probe_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=10.0,
+        help="Probe timeout in seconds.",
+    )
     probe_parser.set_defaults(func=_probe_command)
 
     explain_parser = subparsers.add_parser("explain", help="Explain a diagnostic rule.")
@@ -51,7 +62,20 @@ def build_parser() -> argparse.ArgumentParser:
 
     init_parser = subparsers.add_parser("init", help="Print an MCP Doctor config snippet.")
     init_parser.add_argument(
-        "--client", required=True, choices=["claude-code", "codex", "cursor", "vscode", "windsurf"]
+        "--client",
+        required=True,
+        choices=[
+            "claude-code",
+            "claude-desktop",
+            "cline",
+            "codex",
+            "cursor",
+            "opencode",
+            "roo-code",
+            "vscode",
+            "windsurf",
+            "zed",
+        ],
     )
     init_parser.set_defaults(func=_init_command)
 
@@ -95,7 +119,11 @@ def _audit_command(args: argparse.Namespace) -> int:
 
 def _probe_command(args: argparse.Namespace) -> int:
     report = probe(
-        root=Path(args.root), home=Path(args.home) if args.home else None, server_id=args.server
+        root=Path(args.root),
+        home=Path(args.home) if args.home else None,
+        server_id=args.server,
+        include_remote=bool(args.remote),
+        timeout=float(args.timeout),
     )
     _write_report(report, args.format, args.output)
     return (

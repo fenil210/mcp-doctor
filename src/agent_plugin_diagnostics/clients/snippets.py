@@ -5,19 +5,44 @@ from typing import Any
 
 from agent_plugin_diagnostics.core.models import ServerConfig, Transport
 
-SUPPORTED_CLIENTS = ("claude-code", "codex", "cursor", "vscode", "windsurf")
+SUPPORTED_CLIENTS = (
+    "claude-code",
+    "claude-desktop",
+    "cline",
+    "codex",
+    "cursor",
+    "opencode",
+    "roo-code",
+    "vscode",
+    "windsurf",
+    "zed",
+)
 
 
 def doctor_server_snippet(client: str) -> str:
-    server = {
+    server: dict[str, Any] = {
         "command": "apd",
         "args": ["serve-mcp"],
     }
     if client == "codex":
         return _toml_server("mcp-doctor", server)
+    if client == "opencode":
+        return _json(
+            {
+                "mcp": {
+                    "mcp-doctor": {
+                        "type": "local",
+                        "command": ["apd", "serve-mcp"],
+                        "enabled": True,
+                    }
+                }
+            }
+        )
+    if client == "zed":
+        return _json({"context_servers": {"mcp-doctor": server}})
     if client == "vscode":
         return _json({"servers": {"mcp-doctor": {"type": "stdio", **server}}})
-    if client in {"claude-code", "cursor", "windsurf"}:
+    if client in {"claude-code", "claude-desktop", "cline", "cursor", "roo-code", "windsurf"}:
         return _json({"mcpServers": {"mcp-doctor": server}})
     raise ValueError(f"unsupported client: {client}")
 
@@ -26,9 +51,13 @@ def server_config_snippet(server: ServerConfig, client: str) -> str:
     entry = _server_entry(server, include_type=client == "vscode")
     if client == "codex":
         return _toml_server(server.id, entry)
+    if client == "opencode":
+        return _json({"mcp": {server.id: _opencode_entry(server)}})
+    if client == "zed":
+        return _json({"context_servers": {server.id: entry}})
     if client == "vscode":
         return _json({"servers": {server.id: entry}})
-    if client in {"claude-code", "cursor", "windsurf"}:
+    if client in {"claude-code", "claude-desktop", "cline", "cursor", "roo-code", "windsurf"}:
         return _json({"mcpServers": {server.id: entry}})
     raise ValueError(f"unsupported client: {client}")
 
@@ -47,6 +76,26 @@ def _server_entry(server: ServerConfig, include_type: bool) -> dict[str, Any]:
         entry["env"] = dict(server.env)
     if server.url:
         entry["url"] = server.url
+    if server.headers:
+        entry["headers"] = dict(server.headers)
+    return entry
+
+
+def _opencode_entry(server: ServerConfig) -> dict[str, Any]:
+    if server.command:
+        entry: dict[str, Any] = {
+            "type": "local",
+            "command": [server.command, *server.args],
+        }
+        if server.env:
+            entry["environment"] = dict(server.env)
+        entry["enabled"] = server.enabled
+        return entry
+    entry = {
+        "type": "remote",
+        "url": server.url,
+        "enabled": server.enabled,
+    }
     if server.headers:
         entry["headers"] = dict(server.headers)
     return entry

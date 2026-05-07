@@ -17,6 +17,11 @@ class ProbeResult:
     server_id: str
     ok: bool
     tools: tuple[str, ...] = ()
+    prompts: tuple[str, ...] = ()
+    resources: tuple[str, ...] = ()
+    protocol_version: str | None = None
+    server_name: str | None = None
+    ping_ok: bool = False
     error: str | None = None
 
 
@@ -59,21 +64,67 @@ def probe_stdio_server(server: ServerConfig, timeout: float = 10.0) -> ProbeResu
             return ProbeResult(
                 server_id=server.id, ok=False, error=f"initialize failed: {response}"
             )
+        initialize_result = response.get("result") or {}
+        if not isinstance(initialize_result, dict):
+            return ProbeResult(
+                server_id=server.id,
+                ok=False,
+                error=f"initialize returned an invalid result: {initialize_result}",
+            )
+        capabilities = initialize_result.get("capabilities") or {}
+        if not isinstance(capabilities, dict):
+            capabilities = {}
+        server_info = initialize_result.get("serverInfo") or {}
+        if not isinstance(server_info, dict):
+            server_info = {}
+        protocol_version = initialize_result.get("protocolVersion")
+        server_name = server_info.get("name")
         _send(process, {"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}})
-        _send(process, {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}})
+        ping_result = _request(process, reader, 2, "ping", timeout)
+        if ping_result is None or ping_result.get("error"):
+            return ProbeResult(
+                server_id=server.id,
+                ok=False,
+                protocol_version=str(protocol_version) if protocol_version else None,
+                server_name=str(server_name) if server_name else None,
+                error=f"ping failed: {ping_result}",
+            )
+        _send(process, {"jsonrpc": "2.0", "id": 3, "method": "tools/list", "params": {}})
         tools_response = reader.read_json(timeout)
         if not tools_response or tools_response.get("error"):
             return ProbeResult(
                 server_id=server.id, ok=False, error=f"tools/list failed: {tools_response}"
             )
         result = tools_response.get("result") or {}
+        if not isinstance(result, dict):
+            return ProbeResult(
+                server_id=server.id, ok=False, error=f"tools/list returned invalid result: {result}"
+            )
         raw_tools = result.get("tools") or []
+        schema_error = _find_tool_schema_error(raw_tools)
+        if schema_error:
+            return ProbeResult(server_id=server.id, ok=False, error=schema_error)
         tools = tuple(
             str(tool.get("name"))
             for tool in raw_tools
             if isinstance(tool, dict) and tool.get("name")
         )
-        return ProbeResult(server_id=server.id, ok=True, tools=tools)
+        prompts = _list_optional(
+            process, reader, 4, "prompts/list", "prompts", capabilities, timeout
+        )
+        resources = _list_optional(
+            process, reader, 5, "resources/list", "resources", capabilities, timeout
+        )
+        return ProbeResult(
+            server_id=server.id,
+            ok=True,
+            tools=tools,
+            prompts=prompts,
+            resources=resources,
+            protocol_version=str(protocol_version) if protocol_version else None,
+            server_name=str(server_name) if server_name else None,
+            ping_ok=True,
+        )
     except Exception as error:
         return ProbeResult(server_id=server.id, ok=False, error=str(error))
     finally:
@@ -102,6 +153,55 @@ def _send(process: subprocess.Popen[str], payload: dict[str, Any]) -> None:
         raise RuntimeError("process stdin is closed")
     process.stdin.write(json.dumps(payload, separators=(",", ":")) + "\n")
     process.stdin.flush()
+
+
+def _request(
+    process: subprocess.Popen[str],
+    reader: _LineReader,
+    request_id: int,
+    method: str,
+    timeout: float,
+) -> dict[str, Any] | None:
+    _send(process, {"jsonrpc": "2.0", "id": request_id, "method": method, "params": {}})
+    return reader.read_json(timeout)
+
+
+def _list_optional(
+    process: subprocess.Popen[str],
+    reader: _LineReader,
+    request_id: int,
+    method: str,
+    capability: str,
+    capabilities: dict[str, Any],
+    timeout: float,
+) -> tuple[str, ...]:
+    if capability not in capabilities:
+        return ()
+    response = _request(process, reader, request_id, method, timeout)
+    if not response or response.get("error"):
+        raise RuntimeError(f"{method} failed: {response}")
+    result = response.get("result") or {}
+    if not isinstance(result, dict):
+        raise RuntimeError(f"{method} returned invalid result: {result}")
+    values = result.get(capability) or []
+    return tuple(
+        str(item.get("name") or item.get("uri")) for item in values if isinstance(item, dict)
+    )
+
+
+def _find_tool_schema_error(raw_tools: Any) -> str | None:
+    if not isinstance(raw_tools, list):
+        return "tools/list result does not contain a tools array"
+    for tool in raw_tools:
+        if not isinstance(tool, dict):
+            return "tools/list returned a non-object tool entry"
+        name = tool.get("name")
+        if not isinstance(name, str) or not name:
+            return "tools/list returned a tool without a string name"
+        schema = tool.get("inputSchema")
+        if schema is not None and not isinstance(schema, dict):
+            return f"tool {name} has invalid inputSchema"
+    return None
 
 
 class _LineReader:

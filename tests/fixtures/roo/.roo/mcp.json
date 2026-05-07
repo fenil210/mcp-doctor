@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "roo-remote": {
+      "type": "streamable-http",
+      "url": "https://example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${env:ROO_TOKEN}"
+      }
+    }
+  }
+}
