@@ -18,6 +18,20 @@ def test_discovers_cursor_project_config() -> None:
     assert servers["docs"].transport == Transport.HTTP
 
 
+def test_discovers_json_config_with_utf8_bom(tmp_path) -> None:
+    config_dir = tmp_path / ".cursor"
+    config_dir.mkdir()
+    (config_dir / "mcp.json").write_text(
+        '{"mcpServers": {"bom": {"command": "python"}}}',
+        encoding="utf-8-sig",
+    )
+
+    result = discover_configs(tmp_path, home=tmp_path / "home")
+
+    assert result.findings == ()
+    assert result.configs[0].servers[0].id == "bom"
+
+
 def test_discovers_codex_project_config() -> None:
     result = discover_configs(FIXTURES / "codex", home=FIXTURES / "empty-home")
 

@@ -83,6 +83,7 @@ def _finding(
     message: str,
     suggestion: str,
     evidence: str | None = None,
+    metadata: dict[str, str] | None = None,
 ) -> Finding:
     return Finding(
         id=rule_id,
@@ -94,6 +95,7 @@ def _finding(
         source=server.source,
         server_id=server.id,
         evidence=evidence,
+        metadata=metadata or {},
     )
 
 
@@ -360,8 +362,12 @@ def _check_absolute_paths(server: ServerConfig) -> list[Finding]:
     if server.source.scope != "project":
         return []
     findings: list[Finding] = []
-    candidates = [server.command or "", server.cwd or "", *server.args]
-    for value in candidates:
+    candidates = [
+        ("command", server.command or ""),
+        ("cwd", server.cwd or ""),
+        *((f"args[{index}]", arg) for index, arg in enumerate(server.args)),
+    ]
+    for field, value in candidates:
         if value and is_absolute_path(value) and not is_placeholder(value):
             findings.append(
                 _finding(
@@ -373,6 +379,7 @@ def _check_absolute_paths(server: ServerConfig) -> list[Finding]:
                     f"{server.display_name} project config contains an absolute path: {value}",
                     "Use a workspace-relative path or document the local requirement.",
                     value,
+                    {"field": field},
                 )
             )
     return findings
