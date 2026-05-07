@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "python-echo": {
+      "command": "python",
+      "args": ["-c", "print('ready')"]
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "local-tools": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["-m", "example_server"]
+    }
+  }
+}
