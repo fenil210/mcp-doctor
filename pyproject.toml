@@ -1,0 +1,66 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agent-plugin-diagnostics"
+version = "0.1.0"
+description = "Local-first diagnostics for MCP and AI coding-agent plugin setups."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [
+  { name = "Fenil Ramoliya" }
+]
+keywords = ["mcp", "codex", "cursor", "claude-code", "diagnostics", "developer-tools"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Quality Assurance",
+  "Topic :: Security"
+]
+dependencies = []
+
+[project.optional-dependencies]
+mcp = ["mcp>=1.13"]
+dev = [
+  "mcp>=1.13",
+  "pytest>=8.0",
+  "ruff>=0.8",
+  "mypy>=1.11"
+]
+
+[project.urls]
+Homepage = "https://github.com/fenil210/mcp-doctor"
+Repository = "https://github.com/fenil210/mcp-doctor"
+Issues = "https://github.com/fenil210/mcp-doctor/issues"
+
+[project.scripts]
+apd = "agent_plugin_diagnostics.cli:main"
+mcp-doctor = "agent_plugin_diagnostics.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent_plugin_diagnostics"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+packages = ["agent_plugin_diagnostics"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

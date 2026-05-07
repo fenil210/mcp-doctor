@@ -1,18 +1,163 @@
 # MCP Doctor
 
-MCP Doctor is a Python-first diagnostic toolkit for MCP and AI coding-agent plugin setups. It helps developers inspect, audit, and debug MCP configuration across clients such as Claude Code, Codex, Cursor, VS Code, and Windsurf.
+MCP Doctor is the repository for Agent Plugin Diagnostics, a Python-first toolkit for auditing MCP and AI coding-agent plugin setups across Claude Code, Codex, Cursor, VS Code, and Windsurf.
 
-The project is designed to be useful from the first install:
+It helps answer a practical question: why is my agent plugin setup broken, risky, or non-portable, and what should I change?
 
-- Discover local MCP configuration across supported clients.
-- Normalize server definitions into one reportable model.
-- Detect broken commands, missing environment variables, risky config, and portability issues.
-- Probe MCP servers safely enough to confirm startup and tool discovery.
-- Export reports for terminals, issue comments, CI, and agent workflows.
-- Run as an MCP server so agents can diagnose their own tool setup.
+## What It Does
 
-This repository is starting with the product plan and implementation foundation. The first working release will focus on local-first diagnostics, clear reports, and a contributor-friendly Python architecture.
+- Discovers MCP configuration across supported local clients.
+- Normalizes server definitions into one report model.
+- Detects missing commands, missing env vars, literal secrets, risky package invocations, plain HTTP URLs, broad filesystem roots, absolute project paths, and duplicate server names.
+- Runs controlled stdio MCP probes for initialize and tools/list.
+- Exports terminal, JSON, Markdown, and SARIF reports.
+- Runs as an optional MCP server so agents can ask for diagnostics directly.
 
-## Status
+## Install
 
-Early implementation. The initial feature branch will add the Python package, CLI, tests, documentation, and MCP server mode.
+From GitHub:
+
+```bash
+python -m pip install "agent-plugin-diagnostics @ git+https://github.com/fenil210/mcp-doctor.git"
+```
+
+For isolated CLI usage:
+
+```bash
+pipx install "agent-plugin-diagnostics @ git+https://github.com/fenil210/mcp-doctor.git"
+```
+
+For local development:
+
+```bash
+git clone https://github.com/fenil210/mcp-doctor.git
+cd mcp-doctor
+python -m venv .venv
+.venv\Scripts\activate
+python -m pip install -e ".[dev,mcp]"
+```
+
+On macOS and Linux, activate with `source .venv/bin/activate`.
+
+## Quick Start
+
+Scan the current workspace:
+
+```bash
+apd scan
+```
+
+Run checks:
+
+```bash
+apd audit
+```
+
+Write a Markdown report:
+
+```bash
+apd export --format markdown --output apd-report.md
+```
+
+Probe a stdio server:
+
+```bash
+apd probe --server filesystem
+```
+
+Explain a finding:
+
+```bash
+apd explain APD021
+```
+
+Generate a client snippet that installs MCP Doctor as an MCP server:
+
+```bash
+apd init --client codex
+apd init --client cursor
+```
+
+## Supported Clients
+
+| Client | Configs |
+| --- | --- |
+| Claude Code | `.mcp.json`, `~/.claude.json` |
+| Codex | `.codex/config.toml`, `~/.codex/config.toml` |
+| Cursor | `.cursor/mcp.json`, `~/.cursor/mcp.json` |
+| VS Code | `.vscode/mcp.json` |
+| Windsurf | `~/.codeium/windsurf/mcp_config.json`, `~/.codeium/mcp_config.json` |
+
+See [docs/client-matrix.md](docs/client-matrix.md) for details.
+
+## Report Formats
+
+Terminal output is designed for local debugging.
+
+JSON output is designed for scripts and agent workflows.
+
+Markdown output is designed for issues, pull requests, and setup documentation.
+
+SARIF output is designed for GitHub code scanning and CI surfaces.
+
+```bash
+apd audit --format json
+apd audit --format sarif --output apd.sarif
+```
+
+## MCP Server Mode
+
+Install with the MCP extra:
+
+```bash
+python -m pip install -e ".[mcp]"
+```
+
+Run:
+
+```bash
+apd serve-mcp
+```
+
+Available MCP tools:
+
+- `scan_agent_stack`
+- `audit_agent_stack`
+- `explain_finding`
+- `generate_client_config`
+- `list_supported_clients`
+
+Generate client config snippets with:
+
+```bash
+apd init --client claude-code
+apd init --client codex
+apd init --client cursor
+apd init --client vscode
+apd init --client windsurf
+```
+
+## Development
+
+```bash
+python -m ruff check .
+python -m ruff format --check .
+python -m mypy src/agent_plugin_diagnostics
+python -m pytest
+```
+
+Project plan: [features.md](features.md)
+
+Architecture: [docs/architecture.md](docs/architecture.md)
+
+Rules: [docs/rule-index.md](docs/rule-index.md)
+
+## Security Model
+
+MCP Doctor is local-first and has no telemetry. Static checks do not make network calls. Probe mode starts configured stdio MCP servers only for a controlled protocol handshake and tool discovery, with timeouts and process cleanup.
+
+Remote HTTP and SSE probing is intentionally not implemented in the first release.
+
+## License
+
+Apache-2.0.
