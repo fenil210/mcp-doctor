@@ -30,7 +30,7 @@ Deterministic checks that inspect normalized configs and emit findings.
 
 `probes`
 
-Controlled MCP protocol probes. Probes run initialize, ping, tools/list, and optional prompts/resources lists when the server advertises those capabilities. Remote HTTP and SSE probes are opt-in through `apd probe --remote`.
+Controlled MCP protocol probes. Probes run initialize, initialized notification, ping, tools/list, and optional prompts/resources lists when the server advertises those capabilities. The protocol validator checks JSON-RPC 2.0 response envelopes, initialize result shape, negotiated protocol version, empty ping result shape, and list result schemas. Remote HTTP and SSE probes are opt-in through `apd probe --remote`.
 
 `reports`
 

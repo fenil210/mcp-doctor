@@ -214,10 +214,13 @@ Protocol checks:
 
 - Server starts within timeout.
 - Initialize handshake succeeds.
+- Client sends the current MCP protocol version.
+- Client sends `notifications/initialized` after successful initialize.
+- JSON-RPC responses use valid envelopes with matching ids and exactly one of result or error.
 - Tools list succeeds.
 - Prompt list succeeds where supported.
 - Resource list succeeds where supported.
-- Tool schemas are parseable.
+- Tool schemas include required `inputSchema` objects with `type: object`.
 - Server output does not leak obvious secrets during discovery.
 
 Security and trust checks:

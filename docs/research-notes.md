@@ -16,6 +16,15 @@ This document records the public documentation used for the current discovery an
 
 ## Protocol Sources
 
+The MCP specification and documentation define the protocol behavior that APD validates:
+
+- The current protocol version is `2025-06-18`: https://modelcontextprotocol.io/specification/
+- All MCP messages must follow JSON-RPC 2.0. Responses must contain exactly one of `result` or `error`, and notifications must not include an id: https://modelcontextprotocol.io/specification/2025-06-18/basic/index
+- Lifecycle starts with `initialize`; after a successful initialize response, the client sends `notifications/initialized`: https://modelcontextprotocol.io/specification/2025-06-18/basic/lifecycle
+- `InitializeResult` must contain `protocolVersion`, `capabilities`, and `serverInfo`: https://modelcontextprotocol.io/specification/2025-06-18/schema
+- `tools/list` returns a `tools` array; each tool has `name` and required `inputSchema`: https://modelcontextprotocol.io/specification/2025-06-18/schema
+- Stdio transport uses newline-delimited UTF-8 JSON-RPC messages. Streamable HTTP uses POST/GET and requires clients to accept both `application/json` and `text/event-stream` for POST responses: https://modelcontextprotocol.io/specification/2025-06-18/basic/transports
+
 The MCP Python SDK provides the client transports used by remote probing:
 
 - `streamablehttp_client` for Streamable HTTP MCP servers.

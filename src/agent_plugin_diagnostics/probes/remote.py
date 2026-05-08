@@ -4,6 +4,10 @@ import asyncio
 from typing import Any
 
 from agent_plugin_diagnostics.core.models import ServerConfig, Transport
+from agent_plugin_diagnostics.probes.protocol import (
+    validate_resources_result,
+    validate_tools_result,
+)
 from agent_plugin_diagnostics.probes.stdio import ProbeResult
 
 
@@ -59,9 +63,15 @@ async def _probe_streams(
         initialize_result = await asyncio.wait_for(session.initialize(), timeout=timeout)
         await asyncio.wait_for(session.send_ping(), timeout=timeout)
         tools_result = await asyncio.wait_for(session.list_tools(), timeout=timeout)
-        schema_error = _find_sdk_tool_schema_error(tools_result.tools)
+        tool_dicts = [_sdk_tool_to_dict(tool) for tool in tools_result.tools]
+        tool_names, schema_error = validate_tools_result({"tools": tool_dicts})
         if schema_error:
-            return ProbeResult(server_id=server.id, ok=False, error=schema_error)
+            return ProbeResult(
+                server_id=server.id,
+                ok=False,
+                error=schema_error,
+                failure_rule_id="APD081",
+            )
         prompts: tuple[str, ...] = ()
         resources: tuple[str, ...] = ()
         capabilities = getattr(initialize_result, "capabilities", None)
@@ -70,14 +80,27 @@ async def _probe_streams(
             prompts = tuple(prompt.name for prompt in prompt_result.prompts)
         if getattr(capabilities, "resources", None) is not None:
             resource_result = await asyncio.wait_for(session.list_resources(), timeout=timeout)
-            resources = tuple(str(resource.uri) for resource in resource_result.resources)
+            resources, schema_error = validate_resources_result(
+                {
+                    "resources": [
+                        {"uri": str(resource.uri)} for resource in resource_result.resources
+                    ]
+                }
+            )
+            if schema_error:
+                return ProbeResult(
+                    server_id=server.id,
+                    ok=False,
+                    error=schema_error,
+                    failure_rule_id="APD081",
+                )
         server_info = getattr(initialize_result, "serverInfo", None)
         server_name = getattr(server_info, "name", None) if server_info else None
         protocol_version = getattr(initialize_result, "protocolVersion", None)
         return ProbeResult(
             server_id=server.id,
             ok=True,
-            tools=tuple(tool.name for tool in tools_result.tools),
+            tools=tool_names,
             prompts=prompts,
             resources=resources,
             protocol_version=str(protocol_version) if protocol_version else None,
@@ -86,12 +109,22 @@ async def _probe_streams(
         )
 
 
-def _find_sdk_tool_schema_error(tools: Any) -> str | None:
-    for tool in tools:
-        name = getattr(tool, "name", None)
-        if not isinstance(name, str) or not name:
-            return "tools/list returned a tool without a string name"
-        schema = getattr(tool, "inputSchema", None)
-        if schema is not None and not isinstance(schema, dict):
-            return f"tool {name} has invalid inputSchema"
-    return None
+def _sdk_tool_to_dict(tool: Any) -> dict[str, Any]:
+    value: dict[str, Any] = {"name": getattr(tool, "name", None)}
+    input_schema = getattr(tool, "inputSchema", None)
+    if input_schema is None:
+        input_schema = getattr(tool, "input_schema", None)
+    if input_schema is not None:
+        value["inputSchema"] = input_schema
+    output_schema = getattr(tool, "outputSchema", None)
+    if output_schema is None:
+        output_schema = getattr(tool, "output_schema", None)
+    if output_schema is not None:
+        value["outputSchema"] = output_schema
+    annotations = getattr(tool, "annotations", None)
+    if annotations is not None:
+        value["annotations"] = annotations
+    metadata = getattr(tool, "_meta", None)
+    if metadata is not None:
+        value["_meta"] = metadata
+    return value

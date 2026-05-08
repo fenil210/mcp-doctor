@@ -18,7 +18,7 @@ for line in sys.stdin:
                 "jsonrpc": "2.0",
                 "id": request["id"],
                 "result": {
-                    "protocolVersion": "2024-11-05",
+                    "protocolVersion": "2025-06-18",
                     "capabilities": {"tools": {}},
                     "serverInfo": {"name": "fake", "version": "0.1.0"},
                 },
