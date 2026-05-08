@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 from typing import Any, cast
@@ -9,6 +10,12 @@ from agent_plugin_diagnostics.clients.snippets import doctor_server_snippet
 from agent_plugin_diagnostics.core.models import DiagnosticReport
 from agent_plugin_diagnostics.core.rules import RULES
 from agent_plugin_diagnostics.core.workflows import audit, probe, scan
+from agent_plugin_diagnostics.fixers.plans import (
+    apply_preview,
+    build_fix_preview,
+    fix_preview_to_dict,
+    render_fix_preview,
+)
 from agent_plugin_diagnostics.reports.renderers import ReportFormat, render_report
 
 
@@ -38,6 +45,40 @@ def build_parser() -> argparse.ArgumentParser:
 
     export_parser = _add_report_command(subparsers, "export", "Write an audit report.")
     export_parser.set_defaults(func=_audit_command)
+
+    fix_parser = subparsers.add_parser("fix", help="Preview or apply safe config fixes.")
+    fix_parser.add_argument("root", nargs="?", default=".", help="Workspace root to inspect.")
+    fix_parser.add_argument("--home", default=None, help="Home directory override for tests or CI.")
+    fix_parser.add_argument(
+        "--finding",
+        action="append",
+        default=None,
+        help="Only consider a specific finding id, for example APD050. Can be repeated.",
+    )
+    fix_parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Consider all supported automatic fixes. This is the default.",
+    )
+    mode = fix_parser.add_mutually_exclusive_group()
+    mode.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview diffs without writing files. This is the default.",
+    )
+    mode.add_argument("--apply", action="store_true", help="Write applicable fixes to disk.")
+    fix_parser.add_argument(
+        "--no-backup",
+        action="store_true",
+        help="Do not create .apd.bak backup files when applying fixes.",
+    )
+    fix_parser.add_argument(
+        "--format",
+        default="terminal",
+        choices=["terminal", "json"],
+        help="Output format.",
+    )
+    fix_parser.set_defaults(func=_fix_command)
 
     probe_parser = _add_report_command(
         subparsers, "probe", "Run static checks and controlled MCP probes."
@@ -131,6 +172,34 @@ def _probe_command(args: argparse.Namespace) -> int:
         if any(finding.severity.value in {"critical", "high"} for finding in report.findings)
         else 0
     )
+
+
+def _fix_command(args: argparse.Namespace) -> int:
+    root = Path(args.root)
+    report = audit(root=root, home=Path(args.home) if args.home else None)
+    finding_ids = {str(finding).upper() for finding in args.finding} if args.finding else None
+    preview = build_fix_preview(report=report, root=root, finding_ids=finding_ids)
+    backups: tuple[Path, ...] = ()
+    if args.apply and preview.has_changes:
+        backups = apply_preview(preview, create_backups=not bool(args.no_backup))
+
+    if args.format == "json":
+        payload = fix_preview_to_dict(preview)
+        payload["applied"] = bool(args.apply)
+        payload["backups"] = [str(path) for path in backups]
+        sys.stdout.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+        return 0
+
+    sys.stdout.write(render_fix_preview(preview))
+    if args.apply:
+        sys.stdout.write(f"Applied patches: {len(preview.patches)}\n")
+        if backups:
+            sys.stdout.write("Backups:\n")
+            for backup in backups:
+                sys.stdout.write(f"- {backup}\n")
+    else:
+        sys.stdout.write("Dry run only. Re-run with --apply to write applicable patches.\n")
+    return 0
 
 
 def _write_report(report: DiagnosticReport, output_format: str, output: str | None) -> int:

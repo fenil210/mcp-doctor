@@ -265,16 +265,14 @@ The report should support:
 
 The project should separate finding generation from fixing.
 
-Version 0.1 should only generate fix plans.
-
-Version 0.2 can add safe fix commands:
+Version 0.1 starts with fix plans and narrowly scoped safe fix commands:
 
 ```bash
 apd fix --finding APD001
 apd fix --all --dry-run
 ```
 
-Fixes must be previewed before writing. The implementation should preserve formatting where reasonable and avoid rewriting unrelated parts of user config.
+Fixes must be previewed before writing. The implementation should preserve formatting where reasonable, create backups before applying, and avoid rewriting unrelated parts of user config.
 
 ## Architecture Principles
 

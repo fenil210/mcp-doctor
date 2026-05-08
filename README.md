@@ -53,6 +53,18 @@ Run checks:
 apd audit
 ```
 
+Preview safe config fixes:
+
+```bash
+apd fix --dry-run
+```
+
+Apply applicable fixes with backup files:
+
+```bash
+apd fix --apply
+```
+
 Write a Markdown report:
 
 ```bash
@@ -173,6 +185,8 @@ Research notes: [docs/research-notes.md](docs/research-notes.md)
 ## Security Model
 
 MCP Doctor is local-first and has no telemetry. Static checks do not make network calls. Probe mode starts configured stdio MCP servers only for controlled protocol checks. Remote HTTP and SSE probing requires `apd probe --remote` because it can make network requests.
+
+Fix mode is dry-run by default. `apd fix --apply` only writes fixes that APD can express as exact file patches and creates `.apd.bak` backup files unless `--no-backup` is provided.
 
 ## License
 

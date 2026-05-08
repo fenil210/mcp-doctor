@@ -38,7 +38,7 @@ Terminal, JSON, Markdown, and SARIF renderers. Secret redaction happens before m
 
 `fixers`
 
-Fix-plan generation. Automatic config mutation is intentionally left out until the project has broader coverage.
+Fix-plan generation and safe patch application. Fix mode is dry-run by default, writes only exact file patches, and creates backup files before applying changes.
 
 `mcp_server`
 
