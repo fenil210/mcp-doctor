@@ -136,6 +136,14 @@ RULES: dict[str, Rule] = {
         description="The server could not complete a controlled MCP startup or discovery probe.",
         suggestion="Run the command manually, inspect server logs, and verify required dependencies.",
     ),
+    "APD081": Rule(
+        id="APD081",
+        title="Protocol compliance failed",
+        severity=Severity.MEDIUM,
+        category="protocol",
+        description="The server responded to a controlled MCP probe with a non-compliant JSON-RPC or MCP payload.",
+        suggestion="Update the MCP server to return spec-compliant JSON-RPC 2.0 envelopes and MCP result objects.",
+    ),
 }
 
 

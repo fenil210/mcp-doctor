@@ -10,6 +10,16 @@ from typing import Any
 
 from agent_plugin_diagnostics.core.models import Finding, ServerConfig, Severity, Transport
 from agent_plugin_diagnostics.core.utils import has_unexpanded_placeholder, merged_env
+from agent_plugin_diagnostics.probes.protocol import (
+    extract_success_result,
+    initialize_request,
+    initialized_notification,
+    validate_empty_result,
+    validate_initialize_result,
+    validate_prompts_result,
+    validate_resources_result,
+    validate_tools_result,
+)
 
 
 @dataclass(frozen=True)
@@ -23,6 +33,7 @@ class ProbeResult:
     server_name: str | None = None
     ping_ok: bool = False
     error: str | None = None
+    failure_rule_id: str = "APD080"
 
 
 def probe_stdio_server(server: ServerConfig, timeout: float = 10.0) -> ProbeResult:
@@ -48,73 +59,61 @@ def probe_stdio_server(server: ServerConfig, timeout: float = 10.0) -> ProbeResu
             encoding="utf-8",
         )
         reader = _LineReader(process)
-        initialize = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "initialize",
-            "params": {
-                "protocolVersion": "2024-11-05",
-                "capabilities": {},
-                "clientInfo": {"name": "agent-plugin-diagnostics", "version": "0.1.0"},
-            },
-        }
-        _send(process, initialize)
-        response = reader.read_json(timeout)
-        if not response or response.get("error"):
-            return ProbeResult(
-                server_id=server.id, ok=False, error=f"initialize failed: {response}"
-            )
-        initialize_result = response.get("result") or {}
+        _send(process, initialize_request(1))
+        response = reader.read_response(expected_id=1, timeout=timeout)
+        initialize_result, error = extract_success_result(response, 1, "initialize")
+        if error:
+            return _protocol_failure(server.id, error)
+        error = validate_initialize_result(initialize_result)
+        if error:
+            return _protocol_failure(server.id, error)
         if not isinstance(initialize_result, dict):
-            return ProbeResult(
-                server_id=server.id,
-                ok=False,
-                error=f"initialize returned an invalid result: {initialize_result}",
-            )
-        capabilities = initialize_result.get("capabilities") or {}
+            raise RuntimeError("initialize result unexpectedly passed validation")
+        capabilities = initialize_result["capabilities"]
         if not isinstance(capabilities, dict):
-            capabilities = {}
-        server_info = initialize_result.get("serverInfo") or {}
+            raise RuntimeError("capabilities unexpectedly passed validation")
+        server_info = initialize_result["serverInfo"]
         if not isinstance(server_info, dict):
-            server_info = {}
-        protocol_version = initialize_result.get("protocolVersion")
-        server_name = server_info.get("name")
-        _send(process, {"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}})
+            raise RuntimeError("serverInfo unexpectedly passed validation")
+        protocol_version = initialize_result["protocolVersion"]
+        server_name = server_info["name"]
+        _send(process, initialized_notification())
+
         ping_result = _request(process, reader, 2, "ping", timeout)
-        if ping_result is None or ping_result.get("error"):
-            return ProbeResult(
-                server_id=server.id,
-                ok=False,
-                protocol_version=str(protocol_version) if protocol_version else None,
-                server_name=str(server_name) if server_name else None,
-                error=f"ping failed: {ping_result}",
+        ping_payload, error = extract_success_result(ping_result, 2, "ping")
+        if error:
+            return _protocol_failure(
+                server.id,
+                error,
+                protocol_version=str(protocol_version),
+                server_name=str(server_name),
             )
-        _send(process, {"jsonrpc": "2.0", "id": 3, "method": "tools/list", "params": {}})
-        tools_response = reader.read_json(timeout)
-        if not tools_response or tools_response.get("error"):
-            return ProbeResult(
-                server_id=server.id, ok=False, error=f"tools/list failed: {tools_response}"
+        error = validate_empty_result(ping_payload, "ping")
+        if error:
+            return _protocol_failure(
+                server.id,
+                error,
+                protocol_version=str(protocol_version),
+                server_name=str(server_name),
             )
-        result = tools_response.get("result") or {}
-        if not isinstance(result, dict):
-            return ProbeResult(
-                server_id=server.id, ok=False, error=f"tools/list returned invalid result: {result}"
-            )
-        raw_tools = result.get("tools") or []
-        schema_error = _find_tool_schema_error(raw_tools)
-        if schema_error:
-            return ProbeResult(server_id=server.id, ok=False, error=schema_error)
-        tools = tuple(
-            str(tool.get("name"))
-            for tool in raw_tools
-            if isinstance(tool, dict) and tool.get("name")
-        )
-        prompts = _list_optional(
+
+        tools_response = _request(process, reader, 3, "tools/list", timeout)
+        tools_payload, error = extract_success_result(tools_response, 3, "tools/list")
+        if error:
+            return _protocol_failure(server.id, error)
+        tools, error = validate_tools_result(tools_payload)
+        if error:
+            return _protocol_failure(server.id, error)
+        prompts, error = _list_optional(
             process, reader, 4, "prompts/list", "prompts", capabilities, timeout
         )
-        resources = _list_optional(
+        if error:
+            return _protocol_failure(server.id, error)
+        resources, error = _list_optional(
             process, reader, 5, "resources/list", "resources", capabilities, timeout
         )
+        if error:
+            return _protocol_failure(server.id, error)
         return ProbeResult(
             server_id=server.id,
             ok=True,
@@ -135,6 +134,18 @@ def probe_stdio_server(server: ServerConfig, timeout: float = 10.0) -> ProbeResu
 def probe_failure_to_finding(server: ServerConfig, result: ProbeResult) -> Finding | None:
     if result.ok:
         return None
+    if result.failure_rule_id == "APD081":
+        return Finding(
+            id="APD081",
+            title="Protocol compliance failed",
+            severity=Severity.MEDIUM,
+            category="protocol",
+            message=f"{server.display_name} returned a non-compliant MCP protocol response: {result.error}",
+            suggestion="Update the MCP server to return spec-compliant JSON-RPC 2.0 messages and MCP payloads.",
+            source=server.source,
+            server_id=server.id,
+            evidence=result.error,
+        )
     return Finding(
         id="APD080",
         title="Probe failed",
@@ -145,6 +156,22 @@ def probe_failure_to_finding(server: ServerConfig, result: ProbeResult) -> Findi
         source=server.source,
         server_id=server.id,
         evidence=result.error,
+    )
+
+
+def _protocol_failure(
+    server_id: str,
+    error: str,
+    protocol_version: str | None = None,
+    server_name: str | None = None,
+) -> ProbeResult:
+    return ProbeResult(
+        server_id=server_id,
+        ok=False,
+        protocol_version=protocol_version,
+        server_name=server_name,
+        error=error,
+        failure_rule_id="APD081",
     )
 
 
@@ -163,7 +190,7 @@ def _request(
     timeout: float,
 ) -> dict[str, Any] | None:
     _send(process, {"jsonrpc": "2.0", "id": request_id, "method": method, "params": {}})
-    return reader.read_json(timeout)
+    return reader.read_response(expected_id=request_id, timeout=timeout)
 
 
 def _list_optional(
@@ -174,34 +201,22 @@ def _list_optional(
     capability: str,
     capabilities: dict[str, Any],
     timeout: float,
-) -> tuple[str, ...]:
+) -> tuple[tuple[str, ...], str | None]:
     if capability not in capabilities:
-        return ()
+        return (), None
     response = _request(process, reader, request_id, method, timeout)
-    if not response or response.get("error"):
-        raise RuntimeError(f"{method} failed: {response}")
-    result = response.get("result") or {}
-    if not isinstance(result, dict):
-        raise RuntimeError(f"{method} returned invalid result: {result}")
-    values = result.get(capability) or []
-    return tuple(
-        str(item.get("name") or item.get("uri")) for item in values if isinstance(item, dict)
-    )
-
-
-def _find_tool_schema_error(raw_tools: Any) -> str | None:
-    if not isinstance(raw_tools, list):
-        return "tools/list result does not contain a tools array"
-    for tool in raw_tools:
-        if not isinstance(tool, dict):
-            return "tools/list returned a non-object tool entry"
-        name = tool.get("name")
-        if not isinstance(name, str) or not name:
-            return "tools/list returned a tool without a string name"
-        schema = tool.get("inputSchema")
-        if schema is not None and not isinstance(schema, dict):
-            return f"tool {name} has invalid inputSchema"
-    return None
+    result, error = extract_success_result(response, request_id, method)
+    if error:
+        return (), error
+    if capability == "prompts":
+        values, error = validate_prompts_result(result)
+    elif capability == "resources":
+        values, error = validate_resources_result(result)
+    else:
+        return (), f"unsupported optional capability: {capability}"
+    if error:
+        return (), error
+    return values, None
 
 
 class _LineReader:
@@ -210,7 +225,7 @@ class _LineReader:
         self._thread = threading.Thread(target=self._read_stdout, args=(process,), daemon=True)
         self._thread.start()
 
-    def read_json(self, timeout: float) -> dict[str, Any] | None:
+    def read_response(self, expected_id: int, timeout: float) -> dict[str, Any] | None:
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             try:
@@ -224,7 +239,9 @@ class _LineReader:
                 value = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            if isinstance(value, dict):
+            if isinstance(value, dict) and value.get("id") == expected_id:
+                return value
+            if isinstance(value, dict) and "id" in value:
                 return value
         return None
 

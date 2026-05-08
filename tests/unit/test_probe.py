@@ -9,8 +9,9 @@ from pathlib import Path
 import pytest
 
 from agent_plugin_diagnostics.core.models import ConfigSource, ServerConfig, Transport
+from agent_plugin_diagnostics.probes.protocol import CURRENT_PROTOCOL_VERSION
 from agent_plugin_diagnostics.probes.remote import probe_remote_server
-from agent_plugin_diagnostics.probes.stdio import probe_stdio_server
+from agent_plugin_diagnostics.probes.stdio import probe_failure_to_finding, probe_stdio_server
 
 
 def test_stdio_probe_lists_tools() -> None:
@@ -29,6 +30,130 @@ def test_stdio_probe_lists_tools() -> None:
     assert result.ok is True
     assert result.tools == ("ping",)
     assert result.ping_ok is True
+    assert result.protocol_version == CURRENT_PROTOCOL_VERSION
+
+
+def test_stdio_probe_sends_current_protocol_version(tmp_path) -> None:
+    fixture = tmp_path / "version_check_server.py"
+    fixture.write_text(
+        """
+from __future__ import annotations
+
+import json
+import sys
+
+for line in sys.stdin:
+    request = json.loads(line)
+    method = request.get("method")
+    if method == "initialize":
+        if request["params"]["protocolVersion"] != "2025-06-18":
+            payload = {
+                "jsonrpc": "2.0",
+                "id": request["id"],
+                "error": {"code": -32602, "message": "wrong protocol version"},
+            }
+        else:
+            payload = {
+                "jsonrpc": "2.0",
+                "id": request["id"],
+                "result": {
+                    "protocolVersion": "2025-06-18",
+                    "capabilities": {"tools": {}},
+                    "serverInfo": {"name": "version-check", "version": "1.0.0"},
+                },
+            }
+    elif method == "ping":
+        payload = {"jsonrpc": "2.0", "id": request["id"], "result": {}}
+    elif method == "tools/list":
+        payload = {
+            "jsonrpc": "2.0",
+            "id": request["id"],
+            "result": {"tools": [{"name": "ok", "inputSchema": {"type": "object"}}]},
+        }
+    else:
+        continue
+    sys.stdout.write(json.dumps(payload, separators=(",", ":")) + "\\n")
+    sys.stdout.flush()
+""".lstrip(),
+        encoding="utf-8",
+    )
+    server = _stdio_server("version-check", fixture)
+
+    result = probe_stdio_server(server, timeout=3)
+
+    assert result.ok is True
+    assert result.protocol_version == CURRENT_PROTOCOL_VERSION
+
+
+def test_stdio_probe_rejects_bad_jsonrpc_envelope(tmp_path) -> None:
+    fixture = tmp_path / "bad_envelope_server.py"
+    fixture.write_text(
+        """
+from __future__ import annotations
+
+import json
+import sys
+
+for line in sys.stdin:
+    request = json.loads(line)
+    if request.get("method") == "initialize":
+        sys.stdout.write(json.dumps({"id": request["id"], "result": {}}) + "\\n")
+        sys.stdout.flush()
+""".lstrip(),
+        encoding="utf-8",
+    )
+    server = _stdio_server("bad-envelope", fixture)
+
+    result = probe_stdio_server(server, timeout=3)
+    finding = probe_failure_to_finding(server, result)
+
+    assert result.ok is False
+    assert result.failure_rule_id == "APD081"
+    assert result.error == "initialize response must set jsonrpc to 2.0"
+    assert finding is not None
+    assert finding.id == "APD081"
+
+
+def test_stdio_probe_rejects_tool_without_input_schema(tmp_path) -> None:
+    fixture = tmp_path / "bad_tool_schema_server.py"
+    fixture.write_text(
+        """
+from __future__ import annotations
+
+import json
+import sys
+
+for line in sys.stdin:
+    request = json.loads(line)
+    method = request.get("method")
+    if method == "initialize":
+        payload = {
+            "jsonrpc": "2.0",
+            "id": request["id"],
+            "result": {
+                "protocolVersion": "2025-06-18",
+                "capabilities": {"tools": {}},
+                "serverInfo": {"name": "bad-tool", "version": "1.0.0"},
+            },
+        }
+    elif method == "ping":
+        payload = {"jsonrpc": "2.0", "id": request["id"], "result": {}}
+    elif method == "tools/list":
+        payload = {"jsonrpc": "2.0", "id": request["id"], "result": {"tools": [{"name": "bad"}]}}
+    else:
+        continue
+    sys.stdout.write(json.dumps(payload, separators=(",", ":")) + "\\n")
+    sys.stdout.flush()
+""".lstrip(),
+        encoding="utf-8",
+    )
+    server = _stdio_server("bad-tool", fixture)
+
+    result = probe_stdio_server(server, timeout=3)
+
+    assert result.ok is False
+    assert result.failure_rule_id == "APD081"
+    assert result.error == "tool bad is missing required inputSchema"
 
 
 @pytest.mark.parametrize(
@@ -90,3 +215,14 @@ def _wait_for_port(port: int) -> None:
                 return
         time.sleep(0.1)
     raise TimeoutError(f"server on port {port} did not start")
+
+
+def _stdio_server(server_id: str, fixture: Path) -> ServerConfig:
+    source = ConfigSource(client="cursor", path=fixture, scope="project", format="json")
+    return ServerConfig(
+        id=server_id,
+        source=source,
+        transport=Transport.STDIO,
+        command=sys.executable,
+        args=(str(fixture),),
+    )

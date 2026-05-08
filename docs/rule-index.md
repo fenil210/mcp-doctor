@@ -17,5 +17,6 @@
 | APD060 | high | security | Filesystem server root is too broad |
 | APD070 | low | usability | Server name collision |
 | APD080 | medium | probe | Probe failed |
+| APD081 | medium | protocol | Protocol compliance failed |
 
-Use `apd explain <rule-id>` for the detailed explanation and suggested fix. Probe failures now cover stdio, Streamable HTTP, and SSE probe attempts, including initialize, ping, tools/list, and advertised prompt/resource discovery.
+Use `apd explain <rule-id>` for the detailed explanation and suggested fix. Probe failures now cover stdio, Streamable HTTP, and SSE probe attempts, including initialize, initialized notification, ping, tools/list, and advertised prompt/resource discovery. APD081 is reserved for responses that are reachable but non-compliant with the JSON-RPC or MCP result shape APD exercised.
