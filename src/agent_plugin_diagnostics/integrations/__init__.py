@@ -1,0 +1,1 @@
+"""Real application integration checks."""

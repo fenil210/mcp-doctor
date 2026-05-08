@@ -14,6 +14,18 @@ This document records the public documentation used for the current discovery an
 - Windsurf documents `~/.codeium/windsurf/mcp_config.json` MCP configuration: https://docs.windsurf.com/windsurf/cascade/mcp
 - Zed documents MCP context servers through `context_servers` in settings and project/user settings files: https://zed.dev/docs/ai/mcp and https://zed.dev/docs/configuring-zed
 
+## Real App Integration Sources
+
+The real app integration harness only uses source-backed commands and config paths:
+
+- Claude Code documents the `claude` CLI and `claude mcp` command group: https://code.claude.com/docs/en/cli-reference
+- Claude support documents the native installer placing `claude` under `~/.local/bin` and `%USERPROFILE%\.local\bin`: https://support.claude.com/en/articles/14554922-claude-code-user-faq
+- Cline CLI documents `cline config`, `cline mcp`, and the MCP config path used by the CLI: https://docs.cline.bot/cline-cli/configuration
+- Cursor documents Cursor CLI and that the CLI respects `mcp.json`: https://docs.cursor.com/en/cli/using
+- Cursor CLI reference documents `cursor-agent mcp`: https://docs.cursor.com/en/cli/reference/parameters
+- Windsurf documents that the `windsurf` command can be installed in `PATH`: https://docs.windsurf.com/windsurf
+- Zed documents the `zed` CLI: https://zed.dev/docs/reference/cli.html
+
 ## Protocol Sources
 
 The MCP specification and documentation define the protocol behavior that APD validates:
