@@ -25,14 +25,17 @@ classifiers = [
   "Topic :: Software Development :: Quality Assurance",
   "Topic :: Security"
 ]
-dependencies = []
+dependencies = [
+  "mcp>=1.13"
+]
 
 [project.optional-dependencies]
 mcp = ["mcp>=1.13"]
 dev = [
-  "mcp>=1.13",
+  "build>=1.2",
   "pytest>=8.0",
   "ruff>=0.8",
+  "twine>=5.1",
   "mypy>=1.11"
 ]
 
