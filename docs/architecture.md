@@ -10,8 +10,10 @@ flowchart LR
     Discovery --> Model["Normalized config model"]
     Model --> Checks["Static checks"]
     Model --> Probes["Controlled probes"]
+    Model --> Integrations["Real app integrations"]
     Checks --> Report["Report renderers"]
     Probes --> Report
+    Integrations --> Report
 ```
 
 ## Modules
@@ -39,6 +41,10 @@ Terminal, JSON, Markdown, and SARIF renderers. Secret redaction happens before m
 `fixers`
 
 Fix-plan generation and safe patch application. Fix mode is dry-run by default, writes only exact file patches, and creates backup files before applying changes.
+
+`integrations`
+
+Read-only real app detection. The integration harness checks documented config paths, detects known app commands on `PATH` or documented installer paths, optionally runs version commands with timeouts, and reports what APD actually observed on the current machine.
 
 `mcp_server`
 

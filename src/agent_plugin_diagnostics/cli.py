@@ -16,6 +16,12 @@ from agent_plugin_diagnostics.fixers.plans import (
     fix_preview_to_dict,
     render_fix_preview,
 )
+from agent_plugin_diagnostics.integrations.apps import (
+    check_real_app_integrations,
+    render_integrations_json,
+    render_integrations_markdown,
+    render_integrations_terminal,
+)
 from agent_plugin_diagnostics.reports.renderers import ReportFormat, render_report
 
 
@@ -100,6 +106,45 @@ def build_parser() -> argparse.ArgumentParser:
     explain_parser = subparsers.add_parser("explain", help="Explain a diagnostic rule.")
     explain_parser.add_argument("rule_id")
     explain_parser.set_defaults(func=_explain_command)
+
+    integrations_parser = subparsers.add_parser(
+        "integrations",
+        help="Check real installed agent apps and documented config paths.",
+    )
+    integrations_parser.add_argument(
+        "root",
+        nargs="?",
+        default=".",
+        help="Workspace root to inspect.",
+    )
+    integrations_parser.add_argument(
+        "--home",
+        default=None,
+        help="Home directory override for tests or CI.",
+    )
+    integrations_parser.add_argument(
+        "--format",
+        default="terminal",
+        choices=["terminal", "json", "markdown"],
+        help="Output format.",
+    )
+    integrations_parser.add_argument(
+        "--output",
+        default=None,
+        help="Write output to a file instead of stdout.",
+    )
+    integrations_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=3.0,
+        help="Timeout in seconds for app version commands.",
+    )
+    integrations_parser.add_argument(
+        "--no-version",
+        action="store_true",
+        help="Only detect commands; do not run version commands.",
+    )
+    integrations_parser.set_defaults(func=_integrations_command)
 
     init_parser = subparsers.add_parser("init", help="Print an MCP Doctor config snippet.")
     init_parser.add_argument(
@@ -199,6 +244,26 @@ def _fix_command(args: argparse.Namespace) -> int:
                 sys.stdout.write(f"- {backup}\n")
     else:
         sys.stdout.write("Dry run only. Re-run with --apply to write applicable patches.\n")
+    return 0
+
+
+def _integrations_command(args: argparse.Namespace) -> int:
+    report = check_real_app_integrations(
+        root=Path(args.root),
+        home=Path(args.home) if args.home else None,
+        timeout=float(args.timeout),
+        include_versions=not bool(args.no_version),
+    )
+    if args.format == "json":
+        rendered = render_integrations_json(report)
+    elif args.format == "markdown":
+        rendered = render_integrations_markdown(report)
+    else:
+        rendered = render_integrations_terminal(report)
+    if args.output:
+        Path(args.output).write_text(rendered, encoding="utf-8")
+    else:
+        sys.stdout.write(rendered)
     return 0
 
 

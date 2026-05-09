@@ -120,6 +120,7 @@ Initial commands:
 apd scan
 apd audit
 apd probe
+apd integrations
 apd explain <finding-id>
 apd export --format markdown
 apd export --format json
@@ -338,6 +339,7 @@ Testing:
 - Unit tests for every adapter and check.
 - Golden fixtures for client config parsing.
 - Probe tests using small local fake MCP servers.
+- Integration harness tests using temporary config files and fake commands on PATH.
 - Snapshot tests for Markdown, JSON, and SARIF output.
 - Windows path tests.
 - CI on Windows, macOS, and Linux.
@@ -351,6 +353,7 @@ Security:
 - Never print full environment values.
 - Process execution must use explicit argv arrays.
 - Probe mode must use timeouts and cleanup child processes.
+- Real app integration checks must be read-only and must not launch GUI apps.
 
 ## Repository Structure
 

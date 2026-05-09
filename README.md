@@ -11,6 +11,7 @@ It helps answer a practical question: why is my agent plugin setup broken, risky
 - Detects missing commands, missing env vars, literal secrets, risky package invocations, plain HTTP URLs, broad filesystem roots, absolute project paths, and duplicate server names.
 - Runs controlled MCP probes for initialize, initialized notification, ping, tools/list, advertised prompts/list, and advertised resources/list.
 - Validates MCP probe responses against JSON-RPC 2.0 envelope rules and required MCP result shapes.
+- Checks real installed agent apps and documented config paths with an opt-in local integration harness.
 - Exports terminal, JSON, Markdown, and SARIF reports.
 - Runs as an optional MCP server so agents can ask for diagnostics directly.
 
@@ -84,6 +85,14 @@ Include remote Streamable HTTP or SSE servers:
 apd probe --remote --timeout 10
 ```
 
+Check installed agent apps and real config files:
+
+```bash
+apd integrations
+apd integrations --format json
+apd integrations --no-version
+```
+
 Explain a finding:
 
 ```bash
@@ -128,6 +137,12 @@ SARIF output is designed for GitHub code scanning and CI surfaces.
 apd audit --format json
 apd audit --format sarif --output apd.sarif
 ```
+
+## Real App Integration Harness
+
+`apd integrations` checks the actual machine instead of assuming apps exist. It looks for documented config files, checks known CLI commands on `PATH`, optionally runs version commands with a timeout, and reuses the normal APD audit model for parsed config and server counts.
+
+The harness is read-only. It does not launch GUI apps, edit configuration, install packages, or run configured MCP servers. Use `apd probe` separately when you want controlled MCP server startup checks.
 
 ## MCP Server Mode
 

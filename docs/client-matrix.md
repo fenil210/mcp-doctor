@@ -15,6 +15,25 @@ This matrix documents the discovery targets supported by version 0.1.
 | Windsurf | Not yet | `~/.codeium/windsurf/mcp_config.json`, `~/.codeium/mcp_config.json` | JSON | `mcpServers` | Global config paths are supported. |
 | Zed | `.zed/settings.json` | `~/.config/zed/settings.json`, `~/.zed/settings.json`, `~/AppData/Roaming/Zed/settings.json` | JSON | `context_servers` | Supports Zed context server settings. |
 
+## Real App Integration Checks
+
+`apd integrations` uses the same config paths above and also checks these app commands when they are available on the current machine:
+
+| Client | Commands Checked | Version Command |
+| --- | --- | --- |
+| Claude Desktop | None | Not applicable |
+| Claude Code | `claude` | `claude --version` |
+| Cline | `cline` | `cline --version` |
+| Codex | `codex` | `codex --version` |
+| Cursor | `cursor-agent`, `cursor` | `<command> --version` |
+| OpenCode | `opencode` | `opencode --version` |
+| Roo Code | None | Not applicable |
+| VS Code | `code`, `code-insiders` | `<command> --version` |
+| Windsurf | `windsurf` | `windsurf --version` |
+| Zed | `zed` | `zed --version` |
+
+The integration harness reports missing commands as missing. It does not install apps, launch GUI apps, edit config files, or claim an app is installed unless a command or config file is actually observed.
+
 ## Normalized Fields
 
 Every discovered server is normalized to:
