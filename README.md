@@ -4,6 +4,16 @@ MCP Doctor is the repository for Agent Plugin Diagnostics, a Python-first toolki
 
 It helps answer a practical question: why is my agent plugin setup broken, risky, or non-portable, and what should I change?
 
+## Why This Exists
+
+MCP Doctor is not another MCP server and it is not a thin toy wrapper. It is a local diagnostics CLI for developers using MCP across Claude, Codex, Cursor, VS Code, Windsurf, Zed, Cline, Roo Code, and OpenCode.
+
+It discovers real MCP configs from those clients, normalizes them into one model, and checks for broken commands, missing environment variables, literal secrets, unpinned package launches, broad filesystem roots, absolute local paths, duplicate server names, plain HTTP remote servers, and protocol compliance issues.
+
+It can also run controlled MCP probes for initialize, initialized notification, ping, tools/list, prompts/list, and resources/list. Reports can be generated for terminal, JSON, Markdown, and SARIF workflows. Safe config fixes are previewed before writing and create backups when applied.
+
+The practical value is simple: when someone says, "my MCP setup works on my machine but not yours," MCP Doctor gives them a concrete report instead of a guessing session.
+
 ## What It Does
 
 - Discovers MCP configuration across supported local clients.
