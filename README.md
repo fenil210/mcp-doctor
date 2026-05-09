@@ -17,16 +17,28 @@ It helps answer a practical question: why is my agent plugin setup broken, risky
 
 ## Install
 
-From GitHub:
+Recommended isolated CLI install:
 
 ```bash
-python -m pip install "agent-plugin-diagnostics @ git+https://github.com/fenil210/mcp-doctor.git"
+pipx install agent-plugin-diagnostics
 ```
 
-For isolated CLI usage:
+Fast install with uv:
 
 ```bash
-pipx install "agent-plugin-diagnostics @ git+https://github.com/fenil210/mcp-doctor.git"
+uv tool install agent-plugin-diagnostics
+```
+
+Run once without installing permanently:
+
+```bash
+uvx --from agent-plugin-diagnostics apd audit
+```
+
+Inside a virtual environment:
+
+```bash
+python -m pip install agent-plugin-diagnostics
 ```
 
 For local development:
@@ -36,10 +48,12 @@ git clone https://github.com/fenil210/mcp-doctor.git
 cd mcp-doctor
 python -m venv .venv
 .venv\Scripts\activate
-python -m pip install -e ".[dev,mcp]"
+python -m pip install -e ".[dev]"
 ```
 
 On macOS and Linux, activate with `source .venv/bin/activate`.
+
+Full install notes: [docs/installation.md](docs/installation.md)
 
 ## Quick Start
 
@@ -146,11 +160,7 @@ The harness is read-only. It does not launch GUI apps, edit configuration, insta
 
 ## MCP Server Mode
 
-Install with the MCP extra:
-
-```bash
-python -m pip install -e ".[mcp]"
-```
+The standard installation includes MCP server mode.
 
 Run:
 
@@ -197,6 +207,10 @@ Architecture: [docs/architecture.md](docs/architecture.md)
 Rules: [docs/rule-index.md](docs/rule-index.md)
 
 Research notes: [docs/research-notes.md](docs/research-notes.md)
+
+Installation: [docs/installation.md](docs/installation.md)
+
+Release process: [docs/releasing.md](docs/releasing.md)
 
 ## Security Model
 

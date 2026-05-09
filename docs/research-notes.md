@@ -50,3 +50,13 @@ Source: https://github.com/modelcontextprotocol/python-sdk
 ## Deliberate Limits
 
 This PR does not claim real-world app integration testing. Driving actual Claude Desktop, Claude Code, Codex, Cursor, Cline, Roo Code, Zed, OpenCode, and Windsurf installations belongs in a separate opt-in integration harness because those apps are not reliably available in GitHub Actions.
+
+## Packaging Sources
+
+The installation and release flow follows Python CLI packaging conventions from official sources:
+
+- pipx installs and runs apps from Python packages in isolated environments and works on macOS, Linux, and Windows: https://pipx.pypa.io/latest/docs/ and https://pipx.pypa.io/latest/installation/
+- uv supports `uv tool install` for persistent command-line tools and `uvx` for one-off tool execution in isolated environments: https://docs.astral.sh/uv/concepts/tools/
+- PyPI Trusted Publishing with GitHub Actions avoids storing PyPI API tokens in repository secrets and requires `id-token: write` for the publish job: https://docs.pypi.org/trusted-publishers/using-a-publisher/
+- `pypa/gh-action-pypi-publish` is the PyPA-supported publishing action and recommends building distributions in a separate job before publishing: https://github.com/marketplace/actions/pypi-publish
+- The `mcp-doctor` PyPI name is already occupied, so this project keeps the package name `agent-plugin-diagnostics` while still exposing the `apd` and `mcp-doctor` commands: https://pypi.org/project/mcp-doctor/
